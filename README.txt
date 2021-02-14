@@ -8,7 +8,7 @@ cd gt-ul
 pip install -r requirements.txt
 
 # To generate plots used for the analysis report, run:
-python3 project3.py
+python3 problem3.py
 
 # Some extra data analysis can be run with:
 python3 data.py
