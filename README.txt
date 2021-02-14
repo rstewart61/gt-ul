@@ -1,8 +1,8 @@
 # Machine Learning Assignment 3
 
 # First, get the package
-git clone https://github.com/rstewart61/gt-ml-ul.git
-cd gt-ml-ul
+git clone https://github.com/rstewart61/gt-ul.git
+cd gt-ul
 
 # Install basic requirements
 pip install -r requirements.txt
