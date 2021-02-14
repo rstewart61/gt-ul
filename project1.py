@@ -47,7 +47,6 @@ from imblearn.over_sampling import SMOTE
 from scipy.stats import uniform, reciprocal
 import os
 
-from sklearn.utils.testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
 
 # Fix with https://stackoverflow.com/a/63622906
@@ -417,7 +416,6 @@ def plot_learning_curve(type_name, data_set_name, model_name, pipe, X_train, y_t
     #plt.savefig('plots/' + title + '_learning_curve.png', bbox_inches='tight')
     save_fig('%s_learning_curve' % (type_name), data_set_name, model_name)
 
-@ignore_warnings(category=ConvergenceWarning)
 def tune_hyperparameters(data_set_name, model_name, pipe, param_grid, X_train, y_train):
     ##########################
     # Hyperparameter tuning
@@ -560,7 +558,6 @@ def is_log(seq):
 # Validation curve
 # From Machine Learning with Python
 #####################
-@ignore_warnings(category=ConvergenceWarning)
 def plot_validation_curves(data_set_name, model_name, pipe, param_grid, X_train, y_train):
     if skip(data_set_name, model_name):
         return
