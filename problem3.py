@@ -16,6 +16,7 @@ from sklearn.utils import resample
 import scipy.sparse
 from sklearn.metrics import balanced_accuracy_score, silhouette_score, adjusted_mutual_info_score, completeness_score, homogeneity_score
 from sklearn.metrics import davies_bouldin_score, calinski_harabasz_score, silhouette_samples
+from sklearn.metrics import roc_curve, auc
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import StandardScaler, RobustScaler, OneHotEncoder
 from sklearn.decomposition import PCA, FastICA
@@ -1080,7 +1081,17 @@ def get_best_estimator(problem, num_folds, scoring, tuning_iterations):
     #return clf.best_params_
     return clf.best_estimator_
 
-def score_train_and_test(problem, best_params, scoring):
+roc_auc_results = {}
+def save_roc_auc_results(estimator, problem, analysis):
+    probas_test = estimator.predict_proba(problem.X_test)
+    y_predict = probas_test[:, 1]
+    fpr, tpr, _ = roc_curve(problem.y_test, y_predict, pos_label=1)
+    roc_auc_results[problem.name][analysis.name] = (fpr, tpr)
+    #auc(fpr, tpr)
+    #plt.figure(fig_num)
+    #plt.plot(fpr, tpr, label='%s (area = %0.3f)' % (analysis.name, roc_auc))
+
+def score_train_and_test(problem, best_params, scoring, analysis):
     estimator = clone(problem.estimator)
     estimator.set_params(**best_params)
     estimator.fit(problem.X_train, problem.y_train)
@@ -1091,7 +1102,10 @@ def score_train_and_test(problem, best_params, scoring):
     train_score = balanced_accuracy_score(problem.y_train, y_train_predict)
     test_score = balanced_accuracy_score(problem.y_test, y_test_predict)
 
+    save_roc_auc_results(estimator, problem, analysis)
+
     return np.round(train_score, 3), np.round(test_score, 3)
+
 
 #####################
 # Validation curve
@@ -1196,7 +1210,7 @@ def plot_validation_curves(problem, dr_analysis, analysis):
         print()
     
     print('best_result', best_result, 'best_params', best_params)
-    train_result, test_result = score_train_and_test(problem, best_params, scoring)
+    train_result, test_result = score_train_and_test(problem, best_params, scoring, analysis)
     # TODO: Also show train result?
     return test_result, tuning_time
 
@@ -1599,7 +1613,7 @@ def label_bars(text_format, scale='linear', **kwargs):
 
         ax.text(text_x, text_y, text, ha=ha, va=va, color=color, **kwargs)
 
-def plot_nn_results(problem_results, time_scale):
+def plot_nn_results(problem, problem_results, time_scale):
     titles = ['Balanced Accuracy', 'Tuning Time (s)']
     reverse = [True, False]
     scales = ['linear', time_scale]
@@ -1620,7 +1634,7 @@ def plot_nn_results(problem_results, time_scale):
         label_bars('%.2f', scales[i], rotation=90)
         finalize_plot(problem, Analysis.DEFAULT, 'nn_results_%s' % (titles[i]))
 
-def plot_cluster_results(problem_results, cluster_sizes):
+def plot_cluster_results(problem, problem_results, cluster_sizes):
     results = []
     for label, score in problem_results.items():
         results.append((score, cluster_sizes[label], label))
@@ -1648,7 +1662,25 @@ def plot_cluster_results(problem_results, cluster_sizes):
 
     plt.ylim([0, max(scores) * 1.2])
     finalize_plot(problem, Analysis.DEFAULT, 'cluster_results_ami')
-    
+
+def plot_roc_auc_results(problem, problem_results):
+    plt.title('ROC AUC for %s' % (problem.name))
+    #plt.plot([0, 1], [0, 1], linestyle='--', color=(0.6, 0.6, 0.6), label='Random guessing')
+    #plt.plot([0, 0, 1], [0, 1, 1], linestyle=':', color='black', label='Perfect performance')
+    plt.xlim([-0.05, 1.05])
+    plt.ylim([-0.05, 1.05])
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    results = []
+    for label, (fpr, tpr) in problem_results.items():
+        roc_auc = auc(fpr, tpr)
+        results.append((roc_auc, fpr, tpr, label))
+    results.sort(reverse=True)
+    for roc_auc, fpr, tpr, label in results:
+        plt.plot(fpr, tpr, label='%s (area = %0.3f)' % (label, roc_auc))
+    plt.legend()
+    finalize_plot(problem, Analysis.DEFAULT, 'roc_auc', height=3)
+
 # TODO: Summarized results for DR/clustering combinations. Use AMI.
 if __name__ == "__main__":
     print("CWD: " + os.getcwd())
@@ -1665,6 +1697,7 @@ if __name__ == "__main__":
         nn_results[problem.name] = {}
         cluster_results[problem.name] = {}
         cluster_sizes[problem.name] = {}
+        roc_auc_results[problem.name] = {}
         cluster_experiments(problem, Analysis.DEFAULT)
 
         pca_results = pca_summary(problem)
@@ -1694,8 +1727,9 @@ if __name__ == "__main__":
         time_scale = 'linear'
         if problem.name == 'Dexter':
             time_scale = 'log'
-        plot_nn_results(nn_results[problem.name], time_scale)
-        plot_cluster_results(cluster_results[problem.name], cluster_sizes[problem.name])
+        plot_nn_results(problem, nn_results[problem.name], time_scale)
+        plot_cluster_results(problem, cluster_results[problem.name], cluster_sizes[problem.name])
+        plot_roc_auc_results(problem, roc_auc_results[problem.name])
         continue
         
     
